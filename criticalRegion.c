@@ -16,7 +16,7 @@ int main() {
             psum++; 
         }
         #pragma omp critical  //not allow access unsafe regions: no 2 process can access this region
-          final_sum = final_sum + psum;
+          final_sum = final_sum + psum; //(Runtime: 0.007836 seconds)
     }
 
      /*{
@@ -24,7 +24,7 @@ int main() {
          
         for (int i = 0; i < 1000000; i++) {
              #pragma omp critical  
-              final_sum = final_sum + psum;        //work just like sequential program- do not implement like this
+              final_sum++;        //work just like sequential program- do not implement like this ( 0.601051 seconds)
         }
     }*/
     
