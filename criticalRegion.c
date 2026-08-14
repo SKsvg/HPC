@@ -19,6 +19,15 @@ int main() {
           final_sum = final_sum + psum;
     }
 
+     /*{
+        int myid = omp_get_thread_num();
+         
+        for (int i = 0; i < 1000000; i++) {
+             #pragma omp critical  
+              final_sum = final_sum + psum;        //work just like sequential program- do not implement like this
+        }
+    }*/
+    
     double end_time = omp_get_wtime(); 
 
     printf("Final value of shared_variable is %ld.\n", final_sum);
