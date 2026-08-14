@@ -26,6 +26,12 @@ int main()
 	  #pragma omp critical
 	        pi = sum*dx;
         }
+
+	/*sum=sum*dx;
+	  
+	  #pragma omp atomic           //completed in a serial way
+	        pi += sum;
+	*/
 	
         
 	run_time = omp_get_wtime() - start_time;
