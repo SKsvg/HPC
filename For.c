@@ -11,3 +11,16 @@
 
         return 0;
     }
+/*
+distribute workload using parallel for
+array of sum is useful
+there is no race condition for local variables
+
+for and omp parallel has barriers
+#pragma omp parallel for schedule(satatic,1) - work round robin way
+(the number we use here can be any thing 1,2,3,....)
+
+#pragma omp parallel for schedule(dynamic,1) - just available task taken 
+it is expensive bcz of inter thread communication
+
+*/
