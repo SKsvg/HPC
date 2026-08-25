@@ -16,3 +16,33 @@ int main() {
 }
 
 //inside reduction you can specify private variables(collect data from others sum up values)
+
+
+
+/*
+#include <omp.h>
+#include <stdio.h>
+
+#define N 10
+
+int main() {
+    //int j=10; // j depend on iteration count
+    int s=0;
+    
+    #pragma omp parallel
+    {   
+        int j=10;
+        #pragma omp for reduction(+:s)
+          for (int i=0;i<N; i++){
+            j+= 10 + (i+1)*5;
+            s = i * j;
+          }
+    }      
+    printf("sum = %d\n",s); 
+    
+    return 0;
+}
+
+
+
+*/
