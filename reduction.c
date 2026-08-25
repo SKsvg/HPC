@@ -43,6 +43,37 @@ int main() {
     return 0;
 }
 
+*/
 
+/*
+#include <stdio.h>
+#include <omp.h>
 
+#define N 100000000L
+
+int main()
+{
+    double pi = 0.0;
+    double sum = 0.0;
+    double start_time, run_time;
+
+    double dx = 1.0 / (double)N;
+
+    start_time = omp_get_wtime();
+
+    #pragma omp parallel for reduction(+:sum) // this is parallel
+    for (long i = 0; i < N; i++) { //this is serialisable
+        double x = (i + 0.5) * dx;
+        sum += 4.0 / (1.0 + x * x);
+    }
+
+    pi = sum * dx;
+
+    run_time = omp_get_wtime() - start_time;
+
+    printf("\nPi with %ld steps is %lf in %lf seconds\n",
+           N, pi, run_time);
+
+    return 0;
+}
 */
