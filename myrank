@@ -1,0 +1,268 @@
+if (myrank == 0) {
+MPI_Send(a, 10, MPI_INT, 1, 1, MPI_COMM_WORLD);
+MPI_Send(b, 10, MPI_INT, 1, 2, MPI_COMM_WORLD);
+}
+else if (myrank == 1) {
+MPI_Recv(b, 10, MPI_INT, 0, 2, MPI_COMM_WORLD);
+MPI_Recv(a, 10, MPI_INT, 0, 1, MPI_COMM_WORLD);
+}
+//***
+MPI_Send(a, 10, MPI_INT, 1, 1, MPI_COMM_WORLD); 1,1-tagbit without buffer cannot completed
+MPI_Recv(b, 10, MPI_INT, 0, 2, MPI_COMM_WORLD);  0, 2 -receive using 2 -if buffer nt completed this also not work deadlock occur
+-------------------------------
+send and receive bit need to be differ
+buffer in the sender side only help to execute this
+
+****//
+MPI_Send(buffer, count, datatype, destination, tag, communicator)
+
+Process 0                         Process 1
+   a[10]  --------------------->  ?
+          tag = 1(determine order of execution in the process)
+
+MPI_Send(b, 10, MPI_INT, 1, 2, MPI_COMM_WORLD);
+Process 0                         Process 1
+   b[10]  --------------------->  ?
+          tag = 2
+1st message: a → process 1, tag 1
+2nd message: b → process 1, tag 2
+
+. Process 1 receives b first=======================
+MPI_Recv(b, 10, MPI_INT, 0, 2, MPI_COMM_WORLD);
+MPI_Recv(buffer, count, datatype, source, tag, communicator)
+Process 0                         Process 1
+
+   b[10]  --------------------->  b[10]
+          tag = 2
+--------------------------------------------------------------------------------------------
+"Give me package with label 2" → receives B
+"Now give me package with label 1" → receives A
+----------------------------------------------------------------------------------------------
+Process 0                         Process 1
+
+a = [10 integers]  ────────────>  a = same 10 integers
+                 tag 1
+
+b = [10 integers]  ────────────>  b = same 10 integers
+                 tag 2
+=-======================================================================
+This is an **MPI (Message Passing Interface)** program where **process 0 sends two arrays to process 1**.
+
+ ### Code
+
+```
+if (myrank == 0) {
+    MPI_Send(a, 10, MPI_INT, 1, 1, MPI_COMM_WORLD);
+    MPI_Send(b, 10, MPI_INT, 1, 2, MPI_COMM_WORLD);
+}
+else if (myrank == 1) {
+    MPI_Recv(b, 10, MPI_INT, 0, 2, MPI_COMM_WORLD);
+    MPI_Recv(a, 10, MPI_INT, 0, 1, MPI_COMM_WORLD);
+}
+```
+
+ ## 1\. What is `myrank`?
+
+ In MPI, every process gets a unique **rank (ID)**.
+
+ For example, if you run 4 processes:
+
+```
+Process 0 → myrank = 0
+Process 1 → myrank = 1
+Process 2 → myrank = 2
+Process 3 → myrank = 3
+```
+
+ Here, only processes **0 and 1** participate.
+
+---
+
+ ## 2\. Process 0 sends `a`
+
+```
+MPI_Send(a, 10, MPI_INT, 1, 1, MPI_COMM_WORLD);
+```
+
+ This means:
+
+ > Process 0 sends 10 integers from array `a` to process 1.
+
+ The parameters are:
+
+```
+MPI_Send(buffer, count, datatype, destination, tag, communicator)
+```
+
+ So:
+
+ | Parameter | Value | Meaning |
+| --- | --- | --- |
+| `buffer` | `a` | Data being sent |
+| `count` | `10` | Send 10 elements |
+| `datatype` | `MPI_INT` | Each element is an integer |
+| `destination` | `1` | Send to process 1 |
+| `tag` | `1` | Message identifier |
+| `communicator` | `MPI_COMM_WORLD` | MPI communication group |
+
+So conceptually:
+
+```
+Process 0                         Process 1
+   a[10]  --------------------->  ?
+          tag = 1
+```
+
+---
+
+ ## 3\. Process 0 then sends `b`
+
+```
+MPI_Send(b, 10, MPI_INT, 1, 2, MPI_COMM_WORLD);
+```
+
+ This sends 10 integers from `b` to process 1.
+
+ Notice the tag is now **2**:
+
+```
+Process 0                         Process 1
+   b[10]  --------------------->  ?
+          tag = 2
+```
+
+ Therefore, process 0 sends two messages:
+
+```
+1st message: a → process 1, tag 1
+2nd message: b → process 1, tag 2
+```
+
+---
+
+ ## 4\. Process 1 receives `b` first
+
+```
+MPI_Recv(b, 10, MPI_INT, 0, 2, MPI_COMM_WORLD);
+```
+
+ This says:
+
+ > Receive 10 integers from process 0 whose tag is 2, and put them into array `b`.
+
+ The parameters are:
+
+```
+MPI_Recv(buffer, count, datatype, source, tag, communicator)
+```
+
+ So:
+
+```
+source = 0
+tag    = 2
+```
+
+ It specifically looks for the message:
+
+```
+Process 0                         Process 1
+
+   b[10]  --------------------->  b[10]
+          tag = 2
+```
+
+---
+
+ ## 5\. Process 1 receives `a` second
+
+```
+MPI_Recv(a, 10, MPI_INT, 0, 1, MPI_COMM_WORLD);
+```
+
+ This receives the message with **tag 1**:
+
+```
+Process 0                         Process 1
+
+   a[10]  --------------------->  a[10]
+          tag = 1
+```
+
+---
+
+ ## The important point: send order ≠ receive order
+
+ The sender does:
+
+```
+Send a → tag 1
+Send b → tag 2
+```
+
+ But the receiver does:
+
+```
+Receive b ← tag 2
+Receive a ← tag 1
+```
+
+ This is allowed because **MPI tags identify messages**.
+
+ Process 1 doesn't simply say "give me the first message." It says:
+
+```
+MPI_Recv(b, ..., 0, 2, ...);
+```
+
+ meaning:
+
+ > "Give me a message from process 0 with **tag 2**."
+
+ So it gets `b`, even though `a` was sent first.
+
+ Then:
+
+```
+MPI_Recv(a, ..., 0, 1, ...);
+```
+
+ gets the `a` message.
+
+ ### In simple terms
+
+ Think of process 0 sending two labeled packages:
+
+```
+Process 0
+
+📦 Package A → label 1
+📦 Package B → label 2
+```
+
+ Process 1 says:
+
+```
+"Give me package with label 2" → receives B
+"Now give me package with label 1" → receives A
+```
+
+ The **tag** makes this possible.
+
+ ### Final result
+
+ After communication:
+
+```
+Process 0                         Process 1
+
+a = [10 integers]  ────────────>  a = same 10 integers
+                 tag 1
+
+b = [10 integers]  ────────────>  b = same 10 integers
+                 tag 2
+```
+
+ One subtle point: although the receive order is reversed, **the messages themselves are matched by source + tag**, so `a` does not accidentally end up in `b`.
+
+
