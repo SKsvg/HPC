@@ -1,0 +1,220 @@
+MPI_Comm_size(MPI_COMM_WORLD, &npes);
+MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
+MPI_Send(a, 10, MPI_INT, (myrank+1)%npes, 1, MPI_COMM_WORLD);
+MPI_Recv(b, 10, MPI_INT, (myrank-1+npes)%npes, 1,
+MPI_COMM_WORLD );
+=======================================================================
+This code implements a **ring communication pattern** in MPI. Every process sends its array `a` to the **next process** and receives an array into `b` from the **previous process**.
+
+ ### 1\. Find the number of processes
+
+```
+MPI_Comm_size(MPI_COMM_WORLD, &npes);
+```
+
+ `npes` = **number of processes** participating in `MPI_COMM_WORLD`.
+
+ For example, if you run:
+
+```
+mpirun -np 4 ./program
+```
+
+ then:
+
+```
+npes = 4
+```
+
+ The processes have ranks:
+
+```
+0, 1, 2, 3
+```
+
+---
+
+ ### 2\. Find the current process's rank
+
+```
+MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
+```
+
+ `myrank` tells each process **who it is**.
+
+ For 4 processes:
+
+```
+Process 0 → myrank = 0
+Process 1 → myrank = 1
+Process 2 → myrank = 2
+Process 3 → myrank = 3
+```
+
+---
+
+ ## 3\. Send to the next process
+
+```
+MPI_Send(a, 10, MPI_INT, (myrank+1)%npes, 1, MPI_COMM_WORLD);
+```
+
+ The important part is:
+
+```
+(myrank + 1) % npes
+```
+
+ This calculates the **next process**.
+
+ With 4 processes:
+
+ | Current rank | `(myrank+1)%4` | Sends to |
+| --- | --- | --- |
+| 0 | 1 | Process 1 |
+| 1 | 2 | Process 2 |
+| 2 | 3 | Process 3 |
+| 3 | 0 | Process 0 |
+
+Notice process 3 sends back to process 0. That's what creates a **ring**.
+
+```
+       ┌───────────────┐
+       ↓               │
+     P0 → P1 → P2 → P3
+       ↑               │
+       └───────────────┘
+```
+
+ Each process sends **10 integers** from `a`.
+
+---
+
+ ## 4\. Receive from the previous process
+
+```
+MPI_Recv(
+    b,
+    10,
+    MPI_INT,
+    (myrank-1+npes)%npes,
+    1,
+    MPI_COMM_WORLD
+);
+```
+
+ The important part is:
+
+```
+(myrank - 1 + npes) % npes
+```
+
+ This calculates the **previous process**.
+
+ For 4 processes:
+
+ | Current rank | `(myrank-1+4)%4` | Receives from |
+| --- | --- | --- |
+| 0 | 3 | Process 3 |
+| 1 | 0 | Process 0 |
+| 2 | 1 | Process 1 |
+| 3 | 2 | Process 2 |
+
+So the communication is:
+
+```
+P0 sends a → P1
+P1 sends a → P2
+P2 sends a → P3
+P3 sends a → P0
+```
+
+ At the same time:
+
+```
+P0 receives into b ← P3
+P1 receives into b ← P0
+P2 receives into b ← P1
+P3 receives into b ← P2
+```
+
+---
+
+ ## Why `+ npes` is used?
+
+ Look at process 0:
+
+```
+myrank - 1
+```
+
+ would give:
+
+```
+0 - 1 = -1
+```
+
+ But there is no process `-1`.
+
+ So we use:
+
+```
+(myrank - 1 + npes) % npes
+```
+
+ For process 0 with 4 processes:
+
+```
+(0 - 1 + 4) % 4
+= 3 % 4
+= 3
+```
+
+ Therefore, **process 0 receives from process 3**.
+
+ This is called **wrap-around**.
+
+---
+
+ ## Complete picture with 4 processes
+
+ Suppose every process has its own `a`:
+
+```
+P0: a0
+P1: a1
+P2: a2
+P3: a3
+```
+
+ After the communication:
+
+```
+        sends
+P0 ─────────────→ P1
+ ↑                 │
+ │                 ↓
+P3 ←───────────── P2
+```
+
+ More precisely:
+
+```
+P0: sends a0 → P1     receives a3 → b0
+P1: sends a1 → P2     receives a0 → b1
+P2: sends a2 → P3     receives a1 → b2
+P3: sends a3 → P0     receives a2 → b3
+```
+
+ So after communication:
+
+```
+P0: b = a3
+P1: b = a0
+P2: b = a1
+P3: b = a2
+```
+
+ ### In one sentence
+
+ **Each MPI process sends 10 integers to its right-hand neighbor and receives 10 integers from its left-hand neighbor, forming a circular/ring communication.**
