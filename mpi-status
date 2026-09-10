@@ -1,0 +1,46 @@
+#include <stdio.h>
+#include <mpi.h>
+
+int main(int argc, char *argv[])
+{
+    const int N = 100;
+
+    MPI_Init(&argc, &argv);
+
+    int my_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+
+    int numbers[N];
+
+    if (my_rank == 0)
+    {
+        int n = 69; // Pick a value less than N
+
+        // Fill the array with some values
+        for (int i = 0; i < n; i++)
+            numbers[i] = i + 1;
+
+        // Send n integers to process one
+        MPI_Send(numbers, n, MPI_INT, 1, 0, MPI_COMM_WORLD);
+
+        printf("0 sent %d numbers to 1\n", n);
+    }
+    else if (my_rank == 1)
+    {
+        MPI_Status status;
+        int rcount;
+
+        // N is the maximum number of integers the receiver can accept
+        MPI_Recv(numbers, N, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG,
+                 MPI_COMM_WORLD, &status);
+
+        MPI_Get_count(&status, MPI_INT, &rcount);
+
+        printf("1 received %d numbers from %d, with tag = %d\n",
+               rcount, status.MPI_SOURCE, status.MPI_TAG);
+    }
+
+    MPI_Finalize();
+
+    return 0;
+}
