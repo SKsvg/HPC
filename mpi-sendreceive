@@ -1,3 +1,5 @@
+///no deadlock
+
 #include <stdio.h>
 #include <mpi.h>
 
