@@ -1,0 +1,43 @@
+#include <stdio.h>
+#include <mpi.h>
+
+int main(int argc, char* argv[])
+{
+    int rank;
+
+    MPI_Init(&argc, &argv);
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    if (rank == 0)
+    {
+        int a = 10;
+        int b = 20;
+
+        MPI_Ssend(&a, 1, MPI_INT, 1, 1, MPI_COMM_WORLD);
+        MPI_Ssend(&b, 1, MPI_INT, 1, 2, MPI_COMM_WORLD);
+    }
+    else if (rank == 1)
+    {
+        int a;
+        int b;
+
+        //now we can avoid deadlock occurance
+        MPI_Recv(&a, 1, MPI_INT, 0, 1, MPI_COMM_WORLD,
+                 MPI_STATUS_IGNORE);
+                 
+        MPI_Recv(&b, 1, MPI_INT, 0, 2, MPI_COMM_WORLD,
+                 MPI_STATUS_IGNORE);
+
+        //we can see deadlock when this statement bellow tag no 2
+        //MPI_Recv(&a, 1, MPI_INT, 0, 1, MPI_COMM_WORLD,
+                 MPI_STATUS_IGNORE);
+
+        printf("a = %d\n", a);
+        printf("b = %d\n", b);
+    }
+
+    MPI_Finalize();
+
+    return 0;
+}
