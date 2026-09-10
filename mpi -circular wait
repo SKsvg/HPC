@@ -20,6 +20,216 @@ int main(int argc, char* argv[])
     
     printf("Rank%d: Recieved...%d\n",rank,b);
 
+================================================================================================
+
+Yes. Your logic is basically a **ring communication**: each process sends to the next rank and receives from the previous rank.
+
+ The main problem is that **`npes` has not been declared or initialized**. You need to get the total number of processes using `MPI_Comm_size()`.
+
+ Here is the corrected version:
+
+ Corrected MPI Ring Communication Code
+
+```
+#include <stdio.h>
+#include <mpi.h>
+
+int main(int argc, char* argv[])
+{
+    int rank;
+    int npes;
+    int a, b;
+
+    MPI_Init(&argc, &argv);
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &npes);
+
+    a = 10 * rank;
+
+    printf("Rank %d: sending %d...\n", rank, a);
+
+    MPI_Send(&a, 1, MPI_INT, (rank + 1) % npes, 1, MPI_COMM_WORLD);
+
+    printf("Rank %d: sending completed\n", rank);
+
+    MPI_Recv(&b, 1, MPI_INT, (rank - 1 + npes) % npes, 1,
+             MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+    printf("Rank %d: Received %d\n", rank, b);
+
+    MPI_Finalize();
+
+    return 0;
+}
+```
+
+ ## What was fixed?
+
+ ### 1\. Added `npes`
+
+ You had:
+
+```
+(rank + 1) % npes
+```
+
+ and:
+
+```
+(rank - 1 + npes) % npes
+```
+
+ but `npes` didn't exist.
+
+ We added:
+
+```
+int npes;
+```
+
+ and:
+
+```
+MPI_Comm_size(MPI_COMM_WORLD, &npes);
+```
+
+ `npes` means **number of processes**.
+
+ For example, if you run:
+
+```
+mpirun -np 4 ./program
+```
+
+ then:
+
+```
+npes = 4
+```
+
+ and the ranks are:
+
+```
+0, 1, 2, 3
+```
+
+---
+
+ ## 2\. Understanding `(rank + 1) % npes`
+
+ This determines the **next process**.
+
+ For 4 processes:
+
+```
+Rank 0 → (0 + 1) % 4 = 1
+Rank 1 → (1 + 1) % 4 = 2
+Rank 2 → (2 + 1) % 4 = 3
+Rank 3 → (3 + 1) % 4 = 0
+```
+
+ So:
+
+```
+       ┌───────────────┐
+       ↓               │
+     P0 → P1 → P2 → P3
+       ↑               │
+       └───────────────┘
+```
+
+ It's a **ring**.
+
+---
+
+ ## 3\. Understanding `(rank - 1 + npes) % npes`
+
+ This determines the **previous process**.
+
+ For 4 processes:
+
+```
+Rank 0 → (0 - 1 + 4) % 4 = 3
+Rank 1 → (1 - 1 + 4) % 4 = 0
+Rank 2 → (2 - 1 + 4) % 4 = 1
+Rank 3 → (3 - 1 + 4) % 4 = 2
+```
+
+ So each process receives from the process before it.
+
+---
+
+ ## 4\. Example with 4 processes
+
+ Each process calculates:
+
+```
+a = 10 * rank;
+```
+
+ Therefore:
+
+```
+Rank 0 → a = 0
+Rank 1 → a = 10
+Rank 2 → a = 20
+Rank 3 → a = 30
+```
+
+ Then:
+
+```
+Rank 0 sends 0  → Rank 1
+Rank 1 sends 10 → Rank 2
+Rank 2 sends 20 → Rank 3
+Rank 3 sends 30 → Rank 0
+```
+
+ And the receives are:
+
+```
+Rank 0 receives 30
+Rank 1 receives 0
+Rank 2 receives 10
+Rank 3 receives 20
+```
+
+ So the output should contain approximately:
+
+```
+Rank 0: Received 30
+Rank 1: Received 0
+Rank 2: Received 10
+Rank 3: Received 20
+```
+
+ The **order of the printed lines is not guaranteed**, because the processes execute concurrently.
+
+ ### One important point
+
+ Your original structure:
+
+```
+MPI_Send(...);
+MPI_Recv(...);
+```
+
+ can potentially cause problems with certain MPI send modes or message sizes because **all processes send first**.
+
+ For this ring pattern, a safer and cleaner solution is `MPI_Sendrecv()`:
+
+```
+MPI_Sendrecv(
+    &a, 1, MPI_INT, (rank + 1) % npes, 1,
+    &b, 1, MPI_INT, (rank - 1 + npes) % npes, 1,
+    MPI_COMM_WORLD,
+    MPI_STATUS_IGNORE
+);
+```
+
+ This is particularly useful when learning **ring communication**, because it performs the send and receive as one MPI operation and avoids the classic send/receive deadlock issue.
+
     MPI_Finalize();
 
     return 0;
